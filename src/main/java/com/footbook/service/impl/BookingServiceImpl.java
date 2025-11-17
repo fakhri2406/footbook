@@ -17,6 +17,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.footbook.util.ErrorMessages.USER_NOT_FOUND;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -273,7 +275,7 @@ public class BookingServiceImpl implements BookingService {
     private UUID getCurrentUserId() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)
-            .orElseThrow(() -> new NoSuchElementException("User not found"))
+            .orElseThrow(() -> new NoSuchElementException(USER_NOT_FOUND))
             .getId();
     }
 }

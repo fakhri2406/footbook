@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
+import static com.footbook.util.ErrorMessages.*;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -56,13 +58,13 @@ public class NotificationServiceImpl implements NotificationService {
         UUID currentUserId = getCurrentUserId();
 
         Notification notification = notificationRepository.findById(id)
-            .orElseThrow(() -> new NoSuchElementException("Notification not found with ID: " + id));
+            .orElseThrow(() -> new NoSuchElementException(NOTIFICATION_NOT_FOUND + " with ID: " + id));
 
         if (!notification.getUserId().equals(currentUserId)) {
-            throw new IllegalStateException("You can only mark your own notifications as read");
+            throw new IllegalStateException(NOT_YOUR_NOTIFICATION);
         }
 
-        if (!notification.getIsRead()) {
+        if (Boolean.FALSE.equals(notification.getIsRead())) {
             notification.setIsRead(true);
             notification.setReadAt(LocalDateTime.now());
             notificationRepository.save(notification);
@@ -84,10 +86,10 @@ public class NotificationServiceImpl implements NotificationService {
         UUID currentUserId = getCurrentUserId();
 
         Notification notification = notificationRepository.findById(id)
-            .orElseThrow(() -> new NoSuchElementException("Notification not found with ID: " + id));
+            .orElseThrow(() -> new NoSuchElementException(NOTIFICATION_NOT_FOUND + " with ID: " + id));
 
         if (!notification.getUserId().equals(currentUserId)) {
-            throw new IllegalStateException("You can only delete your own notifications");
+            throw new IllegalStateException(NOT_YOUR_NOTIFICATION);
         }
 
         notificationRepository.delete(notification);
@@ -114,7 +116,7 @@ public class NotificationServiceImpl implements NotificationService {
             log.info("Created notification for user {}: {} - {}", userId, title, message);
         } catch (IllegalArgumentException e) {
             log.error("Invalid notification type: {}", type);
-            throw new IllegalArgumentException("Invalid notification type: " + type);
+            throw new IllegalArgumentException(INVALID_NOTIFICATION_TYPE);
         }
     }
 
@@ -135,7 +137,7 @@ public class NotificationServiceImpl implements NotificationService {
     private UUID getCurrentUserId() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)
-            .orElseThrow(() -> new NoSuchElementException("User not found"))
+            .orElseThrow(() -> new NoSuchElementException(USER_NOT_FOUND))
             .getId();
     }
 }

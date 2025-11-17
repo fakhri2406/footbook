@@ -29,6 +29,8 @@ import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.footbook.util.ErrorMessages.*;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -47,32 +49,33 @@ public class IndividualRoomServiceImpl implements IndividualRoomService {
         UUID currentUserId = getCurrentUserId();
 
         Branch branch = branchRepository.findByIdAndIsActiveTrue(request.branchId())
-            .orElseThrow(() -> new NoSuchElementException("Branch not found or inactive"));
+            .orElseThrow(() -> new NoSuchElementException(BRANCH_INACTIVE));
 
         LocalDate scheduledDate = parseDate(request.scheduledDate());
         LocalTime startTime = parseTime(request.startTime(), "Start time");
         LocalTime endTime = parseTime(request.endTime(), "End time");
 
         if (!endTime.isAfter(startTime)) {
-            throw new IllegalArgumentException("End time must be after start time");
+            throw new IllegalArgumentException(END_TIME_BEFORE_START);
         }
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime bookingDateTime = LocalDateTime.of(scheduledDate, startTime);
         if (bookingDateTime.isBefore(now)) {
-            throw new IllegalArgumentException("Cannot create a room in the past");
+            throw new IllegalArgumentException(BOOKING_IN_PAST);
         }
 
         if (startTime.isBefore(branch.getOperatingHoursStart()) || endTime.isAfter(branch.getOperatingHoursEnd())) {
             throw new IllegalArgumentException(
-                String.format("Booking time must be within branch operating hours (%s - %s)",
+                String.format("%s (%s - %s)",
+                    OUTSIDE_OPERATING_HOURS,
                     branch.getOperatingHoursStart().format(TIME_FORMATTER),
                     branch.getOperatingHoursEnd().format(TIME_FORMATTER))
             );
         }
 
         if (roomRepository.hasUserConflict(currentUserId, scheduledDate, startTime, endTime)) {
-            throw new IllegalArgumentException("You have a conflicting booking at this time");
+            throw new IllegalArgumentException(TIME_CONFLICT);
         }
 
         IndividualRoom room = IndividualRoom.builder()
@@ -137,10 +140,10 @@ public class IndividualRoomServiceImpl implements IndividualRoomService {
     @Transactional(readOnly = true)
     public IndividualRoomDetailResponse getRoomById(UUID id) {
         IndividualRoom room = roomRepository.findById(id)
-            .orElseThrow(() -> new NoSuchElementException("Room not found with ID: " + id));
+            .orElseThrow(() -> new NoSuchElementException(ROOM_NOT_FOUND + " with ID: " + id));
 
         Branch branch = branchRepository.findById(room.getBranchId())
-            .orElseThrow(() -> new NoSuchElementException("Branch not found"));
+            .orElseThrow(() -> new NoSuchElementException(BRANCH_NOT_FOUND));
 
         List<IndividualRoomParticipant> participants = participantRepository.findByRoomIdOrderByJoinedAtAsc(id);
 
@@ -193,23 +196,23 @@ public class IndividualRoomServiceImpl implements IndividualRoomService {
         UUID currentUserId = getCurrentUserId();
 
         IndividualRoom room = roomRepository.findByIdAndStatusNot(roomId, IndividualRoom.RoomStatus.CANCELLED)
-            .orElseThrow(() -> new NoSuchElementException("Room not found or cancelled"));
+            .orElseThrow(() -> new NoSuchElementException(ROOM_CANCELLED));
 
         if (room.getStatus() == IndividualRoom.RoomStatus.FULL) {
-            throw new IllegalStateException("Room is already full");
+            throw new IllegalStateException(ROOM_FULL);
         }
 
         if (participantRepository.existsByRoomIdAndUserId(roomId, currentUserId)) {
-            throw new IllegalStateException("You have already joined this room");
+            throw new IllegalStateException(ALREADY_JOINED);
         }
 
         if (roomRepository.hasUserConflict(currentUserId, room.getScheduledDate(), room.getStartTime(), room.getEndTime())) {
-            throw new IllegalArgumentException("You have a conflicting booking at this time");
+            throw new IllegalArgumentException(TIME_CONFLICT);
         }
 
         long currentParticipants = participantRepository.countByRoomId(roomId);
         if (currentParticipants >= room.getTotalSlots()) {
-            throw new IllegalStateException("Room is already full");
+            throw new IllegalStateException(ROOM_FULL);
         }
 
         IndividualRoomParticipant participant = IndividualRoomParticipant.builder()
@@ -230,14 +233,14 @@ public class IndividualRoomServiceImpl implements IndividualRoomService {
         UUID currentUserId = getCurrentUserId();
 
         IndividualRoom room = roomRepository.findById(roomId)
-            .orElseThrow(() -> new NoSuchElementException("Room not found"));
+            .orElseThrow(() -> new NoSuchElementException(ROOM_NOT_FOUND));
 
         if (room.getOwnerId().equals(currentUserId)) {
-            throw new IllegalStateException("Room owner cannot leave the room. Please cancel the room instead.");
+            throw new IllegalStateException(OWNER_CANNOT_LEAVE);
         }
 
         if (!participantRepository.existsByRoomIdAndUserId(roomId, currentUserId)) {
-            throw new NoSuchElementException("You are not a participant in this room");
+            throw new NoSuchElementException(NOT_PARTICIPANT);
         }
 
         participantRepository.deleteByRoomIdAndUserId(roomId, currentUserId);
@@ -256,10 +259,10 @@ public class IndividualRoomServiceImpl implements IndividualRoomService {
         UUID currentUserId = getCurrentUserId();
 
         IndividualRoom room = roomRepository.findById(roomId)
-            .orElseThrow(() -> new NoSuchElementException("Room not found"));
+            .orElseThrow(() -> new NoSuchElementException(ROOM_NOT_FOUND));
 
         if (!room.getOwnerId().equals(currentUserId)) {
-            throw new IllegalStateException("Only the room owner can cancel the room");
+            throw new IllegalStateException(NOT_OWNER);
         }
 
         room.setStatus(IndividualRoom.RoomStatus.CANCELLED);
@@ -269,7 +272,7 @@ public class IndividualRoomServiceImpl implements IndividualRoomService {
 
     private void checkAndAutoCloseRoom(UUID roomId) {
         IndividualRoom room = roomRepository.findById(roomId)
-            .orElseThrow(() -> new NoSuchElementException("Room not found"));
+            .orElseThrow(() -> new NoSuchElementException(ROOM_NOT_FOUND));
 
         long currentParticipants = participantRepository.countByRoomId(roomId);
 
@@ -282,7 +285,7 @@ public class IndividualRoomServiceImpl implements IndividualRoomService {
 
     private IndividualRoomResponse mapToResponse(IndividualRoom room, Branch branch, int filledSlots) {
         User owner = userRepository.findById(room.getOwnerId())
-            .orElseThrow(() -> new NoSuchElementException("Owner not found"));
+            .orElseThrow(() -> new NoSuchElementException(USER_NOT_FOUND));
 
         return new IndividualRoomResponse(
             room.getId(),
@@ -328,7 +331,7 @@ public class IndividualRoomServiceImpl implements IndividualRoomService {
         try {
             return LocalDate.parse(dateStr, DATE_FORMATTER);
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("Date must be in yyyy-MM-dd format");
+            throw new IllegalArgumentException(DATE_FORMAT_INVALID);
         }
     }
 
@@ -336,14 +339,14 @@ public class IndividualRoomServiceImpl implements IndividualRoomService {
         try {
             return LocalTime.parse(timeStr, TIME_FORMATTER);
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException(fieldName + " must be in HH:mm format");
+            throw new IllegalArgumentException(fieldName + " " + TIME_FORMAT_INVALID);
         }
     }
 
     private UUID getCurrentUserId() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)
-            .orElseThrow(() -> new NoSuchElementException("User not found"))
+            .orElseThrow(() -> new NoSuchElementException(USER_NOT_FOUND))
             .getId();
     }
 }

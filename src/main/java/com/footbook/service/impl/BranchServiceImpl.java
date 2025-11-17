@@ -19,7 +19,8 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
-import java.util.stream.Collectors;
+
+import static com.footbook.util.ErrorMessages.*;
 
 @Service
 @RequiredArgsConstructor
@@ -41,14 +42,14 @@ public class BranchServiceImpl implements BranchService {
         return branchRepository.findByIsActiveTrueOrderByNameAsc()
             .stream()
             .map(this::mapToResponse)
-            .collect(Collectors.toList());
+            .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public BranchResponse getBranchById(UUID id) {
         Branch branch = branchRepository.findByIdAndIsActiveTrue(id)
-            .orElseThrow(() -> new NoSuchElementException("Branch not found with ID: " + id));
+            .orElseThrow(() -> new NoSuchElementException(BRANCH_NOT_FOUND + " with ID: " + id));
         return mapToResponse(branch);
     }
 
@@ -59,7 +60,7 @@ public class BranchServiceImpl implements BranchService {
         LocalTime endTime = parseTime(request.operatingHoursEnd(), "Operating hours end");
 
         if (!endTime.isAfter(startTime)) {
-            throw new IllegalArgumentException("Operating hours end must be after operating hours start");
+            throw new IllegalArgumentException(OPERATING_HOURS_INVALID);
         }
 
         Branch branch = Branch.builder()
@@ -85,7 +86,7 @@ public class BranchServiceImpl implements BranchService {
     @Transactional
     public BranchResponse updateBranch(UUID id, UpdateBranchRequest request) {
         Branch branch = branchRepository.findById(id)
-            .orElseThrow(() -> new NoSuchElementException("Branch not found with ID: " + id));
+            .orElseThrow(() -> new NoSuchElementException(BRANCH_NOT_FOUND + " with ID: " + id));
 
         if (request.name() != null) {
             branch.setName(request.name());
@@ -121,7 +122,7 @@ public class BranchServiceImpl implements BranchService {
         }
 
         if (!branch.getOperatingHoursEnd().isAfter(branch.getOperatingHoursStart())) {
-            throw new IllegalArgumentException("Operating hours end must be after operating hours start");
+            throw new IllegalArgumentException(OPERATING_HOURS_INVALID);
         }
 
         branch = branchRepository.save(branch);
@@ -134,7 +135,7 @@ public class BranchServiceImpl implements BranchService {
     @Transactional
     public void deleteBranch(UUID id) {
         Branch branch = branchRepository.findById(id)
-            .orElseThrow(() -> new NoSuchElementException("Branch not found with ID: " + id));
+            .orElseThrow(() -> new NoSuchElementException(BRANCH_NOT_FOUND + " with ID: " + id));
 
         branch.setIsActive(false);
         branchRepository.save(branch);
@@ -163,7 +164,7 @@ public class BranchServiceImpl implements BranchService {
         try {
             return LocalTime.parse(timeStr, TIME_FORMATTER);
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException(fieldName + " must be in HH:mm format (e.g., 09:00)");
+            throw new IllegalArgumentException(fieldName + " " + TIME_FORMAT_INVALID);
         }
     }
 }

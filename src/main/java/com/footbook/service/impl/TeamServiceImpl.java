@@ -25,6 +25,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.footbook.util.ErrorMessages.*;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -82,7 +84,7 @@ public class TeamServiceImpl implements TeamService {
     @Transactional(readOnly = true)
     public TeamDetailResponse getTeamById(UUID id) {
         Team team = teamRepository.findByIdAndStatus(id, Team.TeamStatus.ACTIVE)
-            .orElseThrow(() -> new NoSuchElementException("Team not found with ID: " + id));
+            .orElseThrow(() -> new NoSuchElementException(TEAM_NOT_FOUND + " with ID: " + id));
 
         List<TeamMember> members = teamMemberRepository.findByTeamIdOrderByJoinedAtAsc(id);
 
@@ -172,10 +174,10 @@ public class TeamServiceImpl implements TeamService {
         UUID currentUserId = getCurrentUserId();
 
         Team team = teamRepository.findByIdAndStatus(id, Team.TeamStatus.ACTIVE)
-            .orElseThrow(() -> new NoSuchElementException("Team not found with ID: " + id));
+            .orElseThrow(() -> new NoSuchElementException(TEAM_NOT_FOUND + " with ID: " + id));
 
         if (!team.getCaptainId().equals(currentUserId)) {
-            throw new IllegalStateException("Only the team captain can update team information");
+            throw new IllegalStateException(NOT_CAPTAIN);
         }
 
         if (request.name() != null) {
@@ -201,19 +203,19 @@ public class TeamServiceImpl implements TeamService {
         UUID currentUserId = getCurrentUserId();
 
         Team team = teamRepository.findByIdAndStatus(id, Team.TeamStatus.ACTIVE)
-            .orElseThrow(() -> new NoSuchElementException("Team not found with ID: " + id));
+            .orElseThrow(() -> new NoSuchElementException(TEAM_NOT_FOUND + " with ID: " + id));
 
         if (!team.getCaptainId().equals(currentUserId)) {
-            throw new IllegalStateException("Only the team captain can add members");
+            throw new IllegalStateException(NOT_CAPTAIN);
         }
 
         if (teamMemberRepository.existsByTeamIdAndUserId(id, request.userId())) {
-            throw new IllegalArgumentException("User is already a member of this team");
+            throw new IllegalArgumentException(ALREADY_MEMBER);
         }
 
         long currentMemberCount = teamMemberRepository.countByTeamId(id);
         if (currentMemberCount >= team.getRosterSize()) {
-            throw new IllegalStateException("Team is already at full capacity");
+            throw new IllegalStateException(TEAM_FULL);
         }
 
         TeamMember teamMember = TeamMember.builder()
@@ -232,18 +234,18 @@ public class TeamServiceImpl implements TeamService {
         UUID currentUserId = getCurrentUserId();
 
         Team team = teamRepository.findByIdAndStatus(teamId, Team.TeamStatus.ACTIVE)
-            .orElseThrow(() -> new NoSuchElementException("Team not found with ID: " + teamId));
+            .orElseThrow(() -> new NoSuchElementException(TEAM_NOT_FOUND + " with ID: " + teamId));
 
         if (!team.getCaptainId().equals(currentUserId)) {
-            throw new IllegalStateException("Only the team captain can remove members");
+            throw new IllegalStateException(NOT_CAPTAIN);
         }
 
         if (team.getCaptainId().equals(userId)) {
-            throw new IllegalStateException("Cannot remove the team captain. Transfer captain role first or disband the team.");
+            throw new IllegalStateException(CANNOT_REMOVE_CAPTAIN);
         }
 
         if (!teamMemberRepository.existsByTeamIdAndUserId(teamId, userId)) {
-            throw new NoSuchElementException("User is not a member of this team");
+            throw new NoSuchElementException(NOT_TEAM_MEMBER);
         }
 
         teamMemberRepository.deleteByTeamIdAndUserId(teamId, userId);
@@ -256,22 +258,22 @@ public class TeamServiceImpl implements TeamService {
         UUID currentUserId = getCurrentUserId();
 
         Team team = teamRepository.findByIdAndStatus(id, Team.TeamStatus.ACTIVE)
-            .orElseThrow(() -> new NoSuchElementException("Team not found with ID: " + id));
+            .orElseThrow(() -> new NoSuchElementException(TEAM_NOT_FOUND + " with ID: " + id));
 
         if (!team.getCaptainId().equals(currentUserId)) {
-            throw new IllegalStateException("Only the current team captain can transfer the role");
+            throw new IllegalStateException(NOT_CAPTAIN);
         }
 
         if (request.newCaptainId().equals(currentUserId)) {
-            throw new IllegalArgumentException("You are already the captain");
+            throw new IllegalArgumentException(ALREADY_CAPTAIN);
         }
 
         if (!teamMemberRepository.existsByTeamIdAndUserId(id, request.newCaptainId())) {
-            throw new IllegalArgumentException("New captain must be a member of the team");
+            throw new IllegalArgumentException(NEW_CAPTAIN_NOT_MEMBER);
         }
 
         userRepository.findById(request.newCaptainId())
-            .orElseThrow(() -> new NoSuchElementException("User not found with ID: " + request.newCaptainId()));
+            .orElseThrow(() -> new NoSuchElementException(USER_NOT_FOUND + " with ID: " + request.newCaptainId()));
 
         team.setCaptainId(request.newCaptainId());
         teamRepository.save(team);
@@ -284,10 +286,10 @@ public class TeamServiceImpl implements TeamService {
         UUID currentUserId = getCurrentUserId();
 
         Team team = teamRepository.findByIdAndStatus(id, Team.TeamStatus.ACTIVE)
-            .orElseThrow(() -> new NoSuchElementException("Team not found with ID: " + id));
+            .orElseThrow(() -> new NoSuchElementException(TEAM_NOT_FOUND + " with ID: " + id));
 
         if (!team.getCaptainId().equals(currentUserId)) {
-            throw new IllegalStateException("Only the team captain can disband the team");
+            throw new IllegalStateException(NOT_CAPTAIN);
         }
 
         team.setStatus(Team.TeamStatus.DISBANDED);
@@ -297,7 +299,7 @@ public class TeamServiceImpl implements TeamService {
 
     private TeamResponse mapToResponse(Team team, int memberCount) {
         User captain = userRepository.findById(team.getCaptainId())
-            .orElseThrow(() -> new NoSuchElementException("Captain not found"));
+            .orElseThrow(() -> new NoSuchElementException(USER_NOT_FOUND));
 
         return new TeamResponse(
             team.getId(),
@@ -322,7 +324,7 @@ public class TeamServiceImpl implements TeamService {
     private UUID getCurrentUserId() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)
-            .orElseThrow(() -> new NoSuchElementException("User not found"))
+            .orElseThrow(() -> new NoSuchElementException(USER_NOT_FOUND))
             .getId();
     }
 }

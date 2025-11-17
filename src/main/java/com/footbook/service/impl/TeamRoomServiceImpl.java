@@ -29,6 +29,8 @@ import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.footbook.util.ErrorMessages.*;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -49,49 +51,45 @@ public class TeamRoomServiceImpl implements TeamRoomService {
         UUID currentUserId = getCurrentUserId();
 
         Branch branch = branchRepository.findByIdAndIsActiveTrue(request.branchId())
-            .orElseThrow(() -> new NoSuchElementException("Branch not found or inactive"));
+            .orElseThrow(() -> new NoSuchElementException(BRANCH_INACTIVE));
 
         Team team = teamRepository.findByIdAndStatus(request.teamId(), Team.TeamStatus.ACTIVE)
-            .orElseThrow(() -> new NoSuchElementException("Team not found or disbanded"));
+            .orElseThrow(() -> new NoSuchElementException(TEAM_DISBANDED));
 
         if (!team.getCaptainId().equals(currentUserId)) {
-            throw new IllegalStateException("Only the team captain can create team rooms");
+            throw new IllegalStateException(NOT_CAPTAIN);
         }
 
         long memberCount = teamMemberRepository.countByTeamId(request.teamId());
         if (memberCount < team.getRosterSize()) {
-            throw new IllegalStateException("Team must have full roster (" + team.getRosterSize() + " members) to create a team room");
+            throw new IllegalStateException(TEAM_NOT_FULL_ROSTER);
         }
 
         LocalDate scheduledDate = parseDate(request.scheduledDate());
-        LocalTime startTime = parseTime(request.startTime(), "Start time");
-        LocalTime endTime = parseTime(request.endTime(), "End time");
+        LocalTime startTime = parseTime(request.startTime());
+        LocalTime endTime = parseTime(request.endTime());
 
         if (!endTime.isAfter(startTime)) {
-            throw new IllegalArgumentException("End time must be after start time");
+            throw new IllegalArgumentException(END_TIME_BEFORE_START);
         }
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime bookingDateTime = LocalDateTime.of(scheduledDate, startTime);
         if (bookingDateTime.isBefore(now)) {
-            throw new IllegalArgumentException("Cannot create a room in the past");
+            throw new IllegalArgumentException(BOOKING_IN_PAST);
         }
 
         if (startTime.isBefore(branch.getOperatingHoursStart()) || endTime.isAfter(branch.getOperatingHoursEnd())) {
-            throw new IllegalArgumentException(
-                String.format("Booking time must be within branch operating hours (%s - %s)",
-                    branch.getOperatingHoursStart().format(TIME_FORMATTER),
-                    branch.getOperatingHoursEnd().format(TIME_FORMATTER))
-            );
+            throw new IllegalArgumentException(OUTSIDE_OPERATING_HOURS);
         }
 
         if (teamRoomRepository.hasTeamConflict(request.teamId(), scheduledDate, startTime, endTime)) {
-            throw new IllegalArgumentException("Your team has a conflicting team room booking at this time");
+            throw new IllegalArgumentException(TEAM_CONFLICT);
         }
 
         List<UUID> teamMemberIds = teamMemberRepository.findUserIdsByTeamId(request.teamId());
         if (teamRoomRepository.hasTeamMembersIndividualConflict(teamMemberIds, scheduledDate, startTime, endTime)) {
-            throw new IllegalArgumentException("One or more team members have conflicting individual room bookings at this time");
+            throw new IllegalArgumentException(TEAM_MEMBERS_CONFLICT);
         }
 
         TeamRoom room = TeamRoom.builder()
@@ -118,7 +116,7 @@ public class TeamRoomServiceImpl implements TeamRoomService {
             try {
                 status = TeamRoom.TeamRoomStatus.valueOf(statusStr.toUpperCase());
             } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException("Invalid status value. Must be OPEN, MATCHED, or CANCELLED");
+                throw new IllegalArgumentException(INVALID_REQUEST);
             }
         }
 
@@ -155,10 +153,10 @@ public class TeamRoomServiceImpl implements TeamRoomService {
     @Transactional(readOnly = true)
     public TeamRoomDetailResponse getRoomById(UUID id) {
         TeamRoom room = teamRoomRepository.findById(id)
-            .orElseThrow(() -> new NoSuchElementException("Room not found with ID: " + id));
+            .orElseThrow(() -> new NoSuchElementException(ROOM_NOT_FOUND + " with ID: " + id));
 
         Branch branch = branchRepository.findById(room.getBranchId())
-            .orElseThrow(() -> new NoSuchElementException("Branch not found"));
+            .orElseThrow(() -> new NoSuchElementException(BRANCH_NOT_FOUND + " with ID: " + room.getBranchId()));
 
         TeamDetailResponse creatorTeam = teamService.getTeamById(room.getCreatorTeamId());
         TeamDetailResponse opponentTeam = room.getOpponentTeamId() != null
@@ -186,40 +184,39 @@ public class TeamRoomServiceImpl implements TeamRoomService {
         UUID currentUserId = getCurrentUserId();
 
         TeamRoom room = teamRoomRepository.findByIdAndStatusNot(roomId, TeamRoom.TeamRoomStatus.CANCELLED)
-            .orElseThrow(() -> new NoSuchElementException("Room not found or cancelled"));
+            .orElseThrow(() -> new NoSuchElementException(ROOM_CANCELLED));
 
         if (room.getStatus() == TeamRoom.TeamRoomStatus.MATCHED) {
-            throw new IllegalStateException("Room is already matched");
+            throw new IllegalStateException(TEAM_ROOM_MATCHED);
         }
 
         Team opponentTeam = teamRepository.findByIdAndStatus(request.teamId(), Team.TeamStatus.ACTIVE)
-            .orElseThrow(() -> new NoSuchElementException("Team not found or disbanded"));
+            .orElseThrow(() -> new NoSuchElementException(TEAM_DISBANDED));
 
         if (!opponentTeam.getCaptainId().equals(currentUserId)) {
-            throw new IllegalStateException("Only the team captain can join team rooms");
+            throw new IllegalStateException(NOT_CAPTAIN);
         }
 
         if (room.getCreatorTeamId().equals(request.teamId())) {
-            throw new IllegalArgumentException("Cannot join your own team's room");
+            throw new IllegalArgumentException(CANNOT_JOIN_OWN_ROOM);
         }
 
         if (!opponentTeam.getRosterSize().equals(room.getRequiredTeamSize())) {
-            throw new IllegalArgumentException(
-                "Team size mismatch. This room requires teams of " + room.getRequiredTeamSize() + " players");
+            throw new IllegalArgumentException(TEAM_SIZE_MISMATCH);
         }
 
         long opponentMemberCount = teamMemberRepository.countByTeamId(request.teamId());
         if (opponentMemberCount < opponentTeam.getRosterSize()) {
-            throw new IllegalStateException("Team must have full roster (" + opponentTeam.getRosterSize() + " members) to join");
+            throw new IllegalStateException(TEAM_NOT_FULL_ROSTER);
         }
 
         if (teamRoomRepository.hasTeamConflict(request.teamId(), room.getScheduledDate(), room.getStartTime(), room.getEndTime())) {
-            throw new IllegalArgumentException("Your team has a conflicting team room booking at this time");
+            throw new IllegalArgumentException(TEAM_CONFLICT);
         }
 
         List<UUID> opponentMemberIds = teamMemberRepository.findUserIdsByTeamId(request.teamId());
         if (teamRoomRepository.hasTeamMembersIndividualConflict(opponentMemberIds, room.getScheduledDate(), room.getStartTime(), room.getEndTime())) {
-            throw new IllegalArgumentException("One or more of your team members have conflicting individual room bookings at this time");
+            throw new IllegalArgumentException(TEAM_MEMBERS_CONFLICT);
         }
 
         room.setOpponentTeamId(request.teamId());
@@ -235,13 +232,13 @@ public class TeamRoomServiceImpl implements TeamRoomService {
         UUID currentUserId = getCurrentUserId();
 
         TeamRoom room = teamRoomRepository.findById(roomId)
-            .orElseThrow(() -> new NoSuchElementException("Room not found"));
+            .orElseThrow(() -> new NoSuchElementException(ROOM_NOT_FOUND + " with ID: " + roomId));
 
         Team creatorTeam = teamRepository.findById(room.getCreatorTeamId())
-            .orElseThrow(() -> new NoSuchElementException("Creator team not found"));
+            .orElseThrow(() -> new NoSuchElementException(TEAM_DISBANDED));
 
         if (!creatorTeam.getCaptainId().equals(currentUserId)) {
-            throw new IllegalStateException("Only the creator team's captain can cancel the room");
+            throw new IllegalStateException(NOT_CAPTAIN);
         }
 
         room.setStatus(TeamRoom.TeamRoomStatus.CANCELLED);
@@ -300,22 +297,22 @@ public class TeamRoomServiceImpl implements TeamRoomService {
         try {
             return LocalDate.parse(dateStr, DATE_FORMATTER);
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("Date must be in yyyy-MM-dd format");
+            throw new IllegalArgumentException(DATE_FORMAT_INVALID);
         }
     }
 
-    private LocalTime parseTime(String timeStr, String fieldName) {
+    private LocalTime parseTime(String timeStr) {
         try {
             return LocalTime.parse(timeStr, TIME_FORMATTER);
         } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException(fieldName + " must be in HH:mm format");
+            throw new IllegalArgumentException(TIME_FORMAT_INVALID);
         }
     }
 
     private UUID getCurrentUserId() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByEmail(email)
-            .orElseThrow(() -> new NoSuchElementException("User not found"))
+            .orElseThrow(() -> new NoSuchElementException(USER_NOT_FOUND))
             .getId();
     }
 }
