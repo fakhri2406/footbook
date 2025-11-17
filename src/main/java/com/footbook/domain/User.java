@@ -39,14 +39,8 @@ public class User extends BaseEntity {
     @Column(name = "profile_picture_url", length = 500)
     private String profilePictureUrl;
 
-    @Column(name = "device_id", length = 255)
-    private String deviceId;
-
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
-
-    @Column(name = "is_premium", nullable = false)
-    private Boolean isPremium;
 
     @Column(name = "is_verified", nullable = false)
     private Boolean isVerified;

@@ -10,7 +10,6 @@ public record ProfileResponse(
     String lastName,
     LocalDateTime dateOfBirth,
     String profilePictureUrl,
-    Boolean isPremium,
     Boolean verified,
     String role,
     LocalDateTime lastLoginAt,

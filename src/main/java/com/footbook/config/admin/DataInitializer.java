@@ -50,7 +50,6 @@ public class DataInitializer implements ApplicationRunner {
                 .firstName(adminProperties.getFirstName())
                 .lastName(adminProperties.getLastName())
                 .isActive(true)
-                .isPremium(true)
                 .isVerified(true)
                 .failedLoginAttempts(0)
                 .verificationAttempts(0)

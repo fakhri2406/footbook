@@ -34,32 +34,61 @@ public class ProfileController {
     private final ProfileService profileService;
 
     @GetMapping
-    @Operation(summary = "Get user profile", description = "Retrieves the authenticated user's profile information")
+    @Operation(
+        summary = "Get user profile",
+        description = "Retrieves the authenticated user's profile information"
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Profile retrieved successfully"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+        @ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     public ResponseEntity<ProfileResponse> getProfile() {
         return ResponseEntity.ok(profileService.getProfile());
     }
 
     @PutMapping
-    @Operation(summary = "Update user profile", description = "Updates the authenticated user's profile information")
+    @Operation(
+        summary = "Update user profile",
+        description = "Updates the authenticated user's profile information"
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Profile updated successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid input", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-        @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid input",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     public ResponseEntity<ProfileResponse> updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
         return ResponseEntity.ok(profileService.updateProfile(request));
     }
 
     @PostMapping("/change-password")
-    @Operation(summary = "Change password", description = "Changes the authenticated user's password")
+    @Operation(
+        summary = "Change password",
+        description = "Changes the authenticated user's password"
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Password changed successfully"),
-        @ApiResponse(responseCode = "400", description = "Old password is incorrect", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-        @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+        @ApiResponse(
+            responseCode = "400",
+            description = "Old password is incorrect",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         profileService.changePassword(request);
@@ -67,11 +96,22 @@ public class ProfileController {
     }
 
     @PostMapping("/change-email")
-    @Operation(summary = "Request email change", description = "Initiates email change by sending verification code to new email")
+    @Operation(
+        summary = "Request email change",
+        description = "Initiates email change by sending verification code to new email"
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Verification code sent successfully"),
-        @ApiResponse(responseCode = "400", description = "Email already exists", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-        @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+        @ApiResponse(
+            responseCode = "400",
+            description = "Email already exists",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     public ResponseEntity<Void> requestEmailChange(@Valid @RequestBody ChangeEmailRequest request) {
         profileService.requestEmailChange(request);
@@ -79,11 +119,22 @@ public class ProfileController {
     }
 
     @PostMapping("/verify-email-change")
-    @Operation(summary = "Verify email change", description = "Confirms email change using verification code")
+    @Operation(
+        summary = "Verify email change",
+        description = "Confirms email change using verification code"
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Email changed successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid or expired code", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-        @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid or expired code",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     public ResponseEntity<Void> verifyEmailChange(@Valid @RequestBody VerifyEmailChangeRequest request) {
         profileService.verifyEmailChange(request);
@@ -91,11 +142,22 @@ public class ProfileController {
     }
 
     @PostMapping(value = "/picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload profile picture", description = "Uploads a new profile picture (max 5MB, jpg/png)")
+    @Operation(
+        summary = "Upload profile picture",
+        description = "Uploads a new profile picture (max 5MB, jpg/png)"
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Picture uploaded successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid file", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-        @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid file",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     public ResponseEntity<Map<String, String>> uploadProfilePicture(@RequestParam("file") MultipartFile file) {
         String imageUrl = profileService.uploadProfilePicture(file);
@@ -103,10 +165,17 @@ public class ProfileController {
     }
 
     @DeleteMapping("/picture")
-    @Operation(summary = "Delete profile picture", description = "Removes the user's profile picture")
+    @Operation(
+        summary = "Delete profile picture",
+        description = "Removes the user's profile picture"
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "204", description = "Picture deleted successfully"),
-        @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+        @ApiResponse(
+            responseCode = "401",
+            description = "Unauthorized",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+        )
     })
     public ResponseEntity<Void> deleteProfilePicture() {
         profileService.deleteProfilePicture();
